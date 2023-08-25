@@ -46,29 +46,42 @@ const gui = new GUI()
 // cubeFolder.add(cube.rotation, 'z', 0, Math.PI * 2)
 // cubeFolder.open()
 
-const cameraFolder = gui.addFolder('Camera')
-cameraFolder.add(camera.position, 'z', 0, 10)
-cameraFolder.open()
+// const cameraFolder = gui.addFolder('Camera')
+// cameraFolder.add(camera.position, 'z', 0, 10)
+// cameraFolder.open()
 
 
 var rules = {
 	overpopulated: 3,
 	birth: 3,
 	underpopulated: 2,
-  decay: 20, 
+  fade_out: 50, 
+  fade_in: 50
 };
 
 const golRules = gui.addFolder("Game of Life Rules")
 golRules.add(rules, "overpopulated").min(0).max(55).step(1);
 golRules.add(rules, "underpopulated").min(0).max(55).step(1);
 golRules.add(rules, "birth").min(0).max(55).step(1);
-golRules.add(rules, "decay").min(0).max(1000).step(1)
+golRules.add(rules, "fade_out").min(0).max(1000).step(1)
+golRules.add(rules, "fade_in").min(0).max(1000).step(1)
 golRules.open()
+
+
+var structure = {
+  spacing: 10,
+  radius: 10,
+  start_seed: 15,
+}
+
+const golStructure = gui.addFolder("Cuboctahedron Structure")
+golStructure.add(structure, "spacing").min(0).max(1000)
+golStructure.add(structure, "radius").min(0).max(1000)
+golStructure.add(structure, "start_seed").min(0).max(55).step(1)
+golStructure.open()
 
 // ================= Build Cubo ===================================================
 const cuboSphere = new THREE.SphereGeometry( 0.5, 15, 15);
-const sphere = new THREE.Mesh( geometry, material );
-scene.add( sphere );
 
 function generatePackedCuboctahedron(n = 2, spacing = 2){
     let l = [];
@@ -160,7 +173,7 @@ class Cell {
   
       scene.add(this.sphere);
     }
-  }
+}
 
 // Helper: Used to help find neighbors
 function distance(pos1 : number[], pos2 : number[]){
@@ -228,10 +241,8 @@ function builCuboTest(){
 }
 
 // ========Game of Life========================================================
-
 const DEAD =  new THREE.Color( 0x454545 );
 const ALIVE = new THREE.Color( 0xffffff );
-
 const LIFETIME = 10;
 
 // Returns the number of alive neighbors a cell has
@@ -261,7 +272,7 @@ function showNeighbors(cell: any, cubo: any[]): string {
 
 // Choose random cells to start alive
 function setSeed(cubo: any[]): void {
-  for (let i = 0; i < 15; i++) {
+  for (let i = 0; i < structure.start_seed; i++) {
     let index = Math.floor(Math.random() * cubo.length);
     cubo[index].alive = true;
     cubo[index].sphere.material.color.setHex(ALIVE);
@@ -279,22 +290,32 @@ function updateCubo(cubo: any[], newStatus: boolean[]): void {
   }
 }
 
+function setTime(currTime: number){
+  if (currTime > 0){
+    return currTime
+  }else{
+    return LIFETIME
+  }
+}
+
 function playGame(cubo: any[]): void {
   // Array of booleans
   let newStatus = cubo.map((cell) => {
     let count = checkNeighbors(cell, cubo);
     if (cell.alive) {
-      if (count < rules.underpopulated) {
-        cell.time = LIFETIME;
-        return false;
-      } else if (count > rules.overpopulated) {
-        cell.time = LIFETIME;
+      if (count < rules.underpopulated || count > rules.overpopulated) {
+        cell.time = setTime(cell.time);
         return false;
       } else {
         return true;
       }
     } else {
-      return count == rules.birth;
+      if (count == rules.birth){
+        cell.time = setTime(cell.time);
+        return true
+      }else{
+        return false
+      }
     }
   });
 
@@ -312,18 +333,28 @@ function playGame(cubo: any[]): void {
 
 function fade(cubo: any[]): void {
   for (let i = 0; i < cubo.length; i++) {
-    if (cubo[i].alive == false && cubo[i].time > 0) {
-      deathFade(cubo[i])
+    if (cubo[i].time > 0){
+      if (cubo[i].alive) {
+        fadeIn(cubo[i])
+      }else{
+        fadeOut(cubo[i])
+      }
     }
   }
 }
 
-function deathFade(cell : any){
+function fadeOut(cell : any){
   var deathColor = new THREE.Color();
-  let orange = new THREE.Color("orange");
   deathColor = deathColor.lerpColors(DEAD, ALIVE, cell.time/LIFETIME);
   cell.sphere.material.color.setHex(deathColor.getHex())
-  cell.time -= rules.decay/1000;
+  cell.time -= rules.fade_out/1000;
+}
+
+function fadeIn(cell : any){
+  var birthColor = new THREE.Color();
+  birthColor = birthColor.lerpColors(ALIVE, DEAD, cell.time/LIFETIME);
+  cell.sphere.material.color.setHex(birthColor.getHex())
+  cell.time -= rules.fade_in/1000;
 }
 
 function statusReport(cubo: any[]): void {
@@ -340,6 +371,13 @@ function startScene(shells: number = 2): any {
   var cellCubo = toCell(start);
   setSeed(cellCubo);
   return cellCubo;
+}
+
+function restartScene(cubo: any): any{
+  cubo.forEach((cell: Cell) => {
+    cell.alive = true;
+  });
+  setSeed(cubo)
 }
 
 let game = startScene(2);
@@ -382,8 +420,13 @@ const UPDATE_INTERVAL = 1;
 gameLoop();
 
 // ====================================================
-
-
+const restartButtom = document.getElementById("restartButton") as HTMLInputElement;
+// Check if the element was found before proceeding
+if (restartButtom) {
+  // restartButtom.addEventListener("click", , false);
+} else {
+  console.error("restartButtom not found!");
+}
 
 function animate(): void {
     requestAnimationFrame(animate)
