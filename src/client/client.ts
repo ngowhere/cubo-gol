@@ -3,6 +3,8 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import Stats from 'three/examples/jsm/libs/stats.module'
 import { GUI } from 'dat.gui'
 
+
+//================ Set Scene ================
 const scene = new THREE.Scene()
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
@@ -23,9 +25,6 @@ const material = new THREE.MeshBasicMaterial({
 
 const light = new THREE.AmbientLight( 0x808080 ); // soft white light
 scene.add( light );
-
-const cube = new THREE.Mesh(geometry, material)
-scene.add(cube)
 
 window.addEventListener('resize', onWindowResize, false)
 function onWindowResize() {
@@ -69,15 +68,18 @@ golRules.open()
 
 
 var structure = {
-  spacing: 10,
+  spacing: 1.5,
   radius: 10,
   start_seed: 15,
+  scene_brightness: 90,
 }
 
-const golStructure = gui.addFolder("Cuboctahedron Structure")
-golStructure.add(structure, "spacing").min(0).max(1000)
-golStructure.add(structure, "radius").min(0).max(1000)
+const golStructure = gui.addFolder("Cuboctahedron Structure + Environment")
+golStructure.add(structure, "spacing").min(0).max(10).step(0.5)
+golStructure.add(structure, "radius").min(0).max(10)
 golStructure.add(structure, "start_seed").min(0).max(55).step(1)
+golStructure.add(structure, "scene_brightness").min(0).max(255).step(1)
+
 golStructure.open()
 
 // ================= Build Cubo ===================================================
@@ -96,6 +98,7 @@ function generatePackedCuboctahedron(n = 2, spacing = 2){
         let flippedArr = newLayer.map(flip);
         l.push(...flippedArr);
     }
+
     return l
 }
 
@@ -162,7 +165,7 @@ class Cell {
       this.time = 0;
   
       let mat = new THREE.MeshPhongMaterial({
-        color: 0xFF0000,
+        color: 0xFFFFFF,
         transparent: true,
         opacity: 0.8,
       });
@@ -247,16 +250,16 @@ const LIFETIME = 10;
 
 // Returns the number of alive neighbors a cell has
 function checkNeighbors(cell: any, cubo: any[]): number {
-    let neighbors = Array.from(cell.neighbors);
-    let result: number[] = [];
-    for (let i = 0; i < neighbors.length; i++) {
-      let testId = neighbors[i] as number;
-      if (cubo[testId].alive) {
-        result.push(neighbors[i] as number);
-      }
+  let neighbors = Array.from(cell.neighbors);
+  let result: number[] = [];
+  for (let i = 0; i < neighbors.length; i++) {
+    let testId = neighbors[i] as number;
+    if (cubo[testId].alive) {
+      result.push(neighbors[i] as number);
     }
-    return result.length;
   }
+  return result.length;
+}
 
 function showNeighbors(cell: any, cubo: any[]): string {
   let neighbors = Array.from(cell.neighbors);
@@ -328,7 +331,7 @@ function playGame(cubo: any[]): void {
       cubo[i].sphere.material.color.setHex(DEAD.getHex());
     }
   }
-  statusReport(cubo);
+  // statusReport(cubo);
 }
 
 function fade(cubo: any[]): void {
@@ -367,66 +370,85 @@ function statusReport(cubo: any[]): void {
 }
 
 function startScene(shells: number = 2): any {
-  var start = generatePackedCuboctahedron(shells);
+  const start = generatePackedCuboctahedron(shells, structure.spacing);
   var cellCubo = toCell(start);
   setSeed(cellCubo);
   return cellCubo;
 }
 
 function restartScene(cubo: any): any{
-  cubo.forEach((cell: Cell) => {
-    cell.alive = true;
+  console.log("RESTARTING SCENE...")
+  
+  const newCoords = generatePackedCuboctahedron(2, structure.spacing)
+  console.log(newCoords)
+
+  cubo.forEach((cell: Cell, index: number) => {
+    cell.alive = false;
+
+    console.log(cell.position)
+    cell.position = newCoords[index];
+    cell.time = 0;
+
+    const [x, y, z] = cell.position;
+    cell.sphere.position.set(x, y, z);
   });
+
+  
   setSeed(cubo)
+
 }
 
 let game = startScene(2);
 
-let start = game.map((cell: any) => cell.alive);
-console.log(start);
+// let start = game.map((cell: any) => cell.alive);
+// console.log(start);
 
 const gameState = {
-    clock: new THREE.Clock(),
-    frame: 0,
-    maxFrame: 90,
-    fps: 30,
-    per: 0
-  };
+  clock: new THREE.Clock(),
+  frame: 0,
+  maxFrame: 90,
+  fps: 30,
+  per: 0
+};
   
 gameState.clock.start();
 let lastUpdate = 0;
 const UPDATE_INTERVAL = 1;
    
-  const gameLoop = function () {
-    const seconds = gameState.clock.getDelta();
-    const totalSeconds = gameState.clock.getElapsedTime();
-    requestAnimationFrame(gameLoop);
-    gameState.per = gameState.frame / gameState.maxFrame;
-    gameState.frame += gameState.fps * seconds;
-    gameState.frame %= gameState.maxFrame;
+const gameLoop = function () {
+  const seconds = gameState.clock.getDelta();
+  const totalSeconds = gameState.clock.getElapsedTime();
+  requestAnimationFrame(gameLoop);
+  gameState.per = gameState.frame / gameState.maxFrame;
+  gameState.frame += gameState.fps * seconds;
+  gameState.frame %= gameState.maxFrame;
+
+  const time = Math.round(totalSeconds);
   
-    const time = Math.round(totalSeconds);
-    
-    if (time - lastUpdate > UPDATE_INTERVAL){
-      lastUpdate = time;
-      playGame(game);
-    }
-    fade(game)
-    console.log(time);
-  
-    renderer.render(scene, camera);
-  };
+  if (time - lastUpdate > UPDATE_INTERVAL){
+    lastUpdate = time;
+    playGame(game);
+  }
+  fade(game)
+  // console.log(time);
+
+  renderer.render(scene, camera);
+};
   
 gameLoop();
 
-// ====================================================
-const restartButtom = document.getElementById("restartButton") as HTMLInputElement;
-// Check if the element was found before proceeding
-if (restartButtom) {
-  // restartButtom.addEventListener("click", , false);
+// --- Restart Button -- 
+const restartButton = document.getElementById('restartButton') as HTMLButtonElement | null;
+
+if (restartButton) {
+    restartButton.addEventListener('click', () => {
+        restartScene(game);
+    });
 } else {
-  console.error("restartButtom not found!");
+    console.error('Button element not found');
 }
+
+// ====================================================
 
 function animate(): void {
     requestAnimationFrame(animate)
