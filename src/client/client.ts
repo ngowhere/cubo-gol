@@ -3,10 +3,11 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import Stats from 'three/examples/jsm/libs/stats.module'
 import { GUI } from 'dat.gui'
 
+import {Cell} from './cell'
+import { Cuboctahedron } from './cuboctahedron'
 
 //================ Set Scene ================
 const scene = new THREE.Scene()
-
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
 camera.position.z = 2
 
@@ -16,12 +17,6 @@ document.body.appendChild(renderer.domElement)
 
 const controls = new OrbitControls(camera, renderer.domElement)
 //controls.addEventListener('change', render)
-
-const geometry = new THREE.BoxGeometry();
-const material = new THREE.MeshBasicMaterial({
-    color: 0x00ff00,
-    wireframe: true,
-})
 
 const light = new THREE.AmbientLight( 0x808080 ); // soft white light
 scene.add( light );
@@ -38,17 +33,6 @@ const stats = new Stats()
 document.body.appendChild(stats.dom)
 
 const gui = new GUI()
-
-// const cubeFolder = gui.addFolder('Cube')
-// cubeFolder.add(cube.rotation, 'x', 0, Math.PI * 2)
-// cubeFolder.add(cube.rotation, 'y', 0, Math.PI * 2)
-// cubeFolder.add(cube.rotation, 'z', 0, Math.PI * 2)
-// cubeFolder.open()
-
-// const cameraFolder = gui.addFolder('Camera')
-// cameraFolder.add(camera.position, 'z', 0, 10)
-// cameraFolder.open()
-
 
 var rules = {
 	overpopulated: 3,
@@ -82,166 +66,6 @@ golStructure.add(structure, "scene_brightness").min(0).max(255).step(1)
 
 golStructure.open()
 
-// ================= Build Cubo ===================================================
-const cuboSphere = new THREE.SphereGeometry( 0.5, 15, 15);
-
-function generatePackedCuboctahedron(n = 2, spacing = 2){
-    let l = [];
-    // Top 
-    for (let z = 0; z < n+1; z++){
-        l.push(...generateCuboctahedronLayer(z,n,spacing));
-    }
-    // Bottom
-    for (let z = 1; z < n+1; z++){
-        // l.push(...generateCuboctahedronLayer(z, n, spacing).map(i => flip(...i)));
-        let newLayer = generateCuboctahedronLayer(z,n,spacing);
-        let flippedArr = newLayer.map(flip);
-        l.push(...flippedArr);
-    }
-
-    return l
-}
-
-// Helper: makes layer of cubo
-function generateCuboctahedronLayer(z : number, n : number = 2, spacing : number = 2){
-    let temp = []
-
-    const vec1 = [1,   0,         0]
-    const vec2 = [1/2, Math.sqrt(3)/2, 0]
-    const vec3 = [1/2, -Math.sqrt(3)/6, Math.sqrt(6)/3]
-
-    for (let y = -(n-z); y < n+1; y++){
-
-        let start = 0
-        let end  = 0
-
-        // start = 0 ? y > 0 : -y
-    
-        if (y >0) {
-            start = 0
-            end  = 2*n+1-z-y
-        }else{
-            start = -y
-            end  = 2*n+1-z
-        }
-
-
-        // let end  = 2*n+1-z-(y ? y > 0 : 0)
-        // console.log("\t", start, end, end-start)
-        
-        for (let x = start; x < end; x++){
-
-            let xPos = spacing*((x*vec1[0] + y*vec2[0] + z*vec3[0]) - n)
-            let yPos = spacing*(x*vec1[1] + y*vec2[1] + z*vec3[1])
-            let zPos = spacing*(x*vec1[2] + y*vec2[2] + z*vec3[2])
-
-            temp.push([xPos,yPos,zPos])
-
-        } 
-    }
-    return temp
-}
-
-// Helper:mirrors coordinates across y and z axis
-function flip(coords: number[]): number[] {
-    const [x, y, z] = coords;
-    return [x, -y, -z];
-}
-
-// Creates Cell Object
-class Cell {
-    id: number;
-    position: number[];
-    neighbors: Set<any>;
-    alive: boolean;
-    sphere: THREE.Mesh;
-    time: number;
-  
-    constructor(id: number, pos: number[]) {
-      this.id = id;
-      this.position = pos;
-      this.neighbors = new Set();
-      this.alive = false;
-      this.time = 0;
-  
-      let mat = new THREE.MeshPhongMaterial({
-        color: 0xFFFFFF,
-        transparent: true,
-        opacity: 0.8,
-      });
-  
-      this.sphere = new THREE.Mesh(cuboSphere, mat);
-      const [x, y, z] = this.position;
-      this.sphere.position.set(x, y, z);
-  
-      scene.add(this.sphere);
-    }
-}
-
-// Helper: Used to help find neighbors
-function distance(pos1 : number[], pos2 : number[]){
-    const [x1, y1, z1] = pos1
-    const [x2, y2, z2] = pos2
-
-    let a = x1 - x2;
-    let b = y1 - y2;
-    let c = z1 - z2;
-    
-    return Math.sqrt(a * a + b * b + c * c);
-}
-
-// Converts arr of positions into Cell objects and sets neighbors of each cell 
-function toCell(cubo: any[]): Cell[] {
-    const cells: Cell[] = cubo.map((pos: number[], index: number) => new Cell(index, pos));
-    cells.map((cell: Cell) => findNeighbors(cell, cells));
-    return cells;
-}
-
-// https://github.com/oguzeroglu/Nearby - Neighbor detection 
-// Floating point error - give room for error
-function findNeighbors(cell: Cell, cubo: Cell[], spacing: number = 2): void {
-    for (let i = 0; i < cubo.length; i++) {
-      let other = cubo[i];
-      let dist = distance(cell.position, other.position);
-      // console.log(dist)
-      if (dist <= spacing && dist > 0) {
-        cell.neighbors.add(other.id);
-      }
-    }
-}
-
-function makeLayers (positions: number[][]): void{
-    let layers: { [key: number]: number[][] } = {};
-
-    for (let i = 0; i < positions.length; i++) {
-      let p = positions[i];
-      let currZ = p[2];
-    
-      if (currZ in layers) {
-        layers[currZ].push(p);
-      } else {
-        layers[currZ] = [p];
-      }
-    }
-
-    // Prints Layers
-    for (let layer in layers) {
-        console.log(`\nZ: ${layer} ${layers[layer].length}`);
-        console.log(...layers[layer], "\n");
-    }
-}
-
-// Testing Function that builds Cubo and validates coordinates
-function builCuboTest(){
-    var positions = generatePackedCuboctahedron(2, 2)
-    positions.forEach(e => console.log(e));
-
-    var cellCubo = toCell(positions)
-    console.log(cellCubo)
-
-    cellCubo.forEach(e => console.log(e.id, e.neighbors));
-    // console.log(cellCubo)
-}
 
 // ========Game of Life========================================================
 const DEAD =  new THREE.Color( 0x454545 );
@@ -370,16 +194,17 @@ function statusReport(cubo: any[]): void {
 }
 
 function startScene(shells: number = 2): any {
-  const start = generatePackedCuboctahedron(shells, structure.spacing);
-  var cellCubo = toCell(start);
+  console.log("STARTING...")
+  const start = cubo.generatePackedCuboctahedron(shells, structure.spacing);
+  var cellCubo = cubo.toCell(start);
   setSeed(cellCubo);
   return cellCubo;
 }
 
-function restartScene(cubo: any): any{
+function restartScene(cubo: any, shells: number = 2): any{
   console.log("RESTARTING SCENE...")
   
-  const newCoords = generatePackedCuboctahedron(2, structure.spacing)
+  const newCoords = cubo.generatePackedCuboctahedron(shells, structure.spacing)
   console.log(newCoords)
 
   cubo.forEach((cell: Cell, index: number) => {
@@ -393,15 +218,16 @@ function restartScene(cubo: any): any{
     cell.sphere.position.set(x, y, z);
   });
 
-  
   setSeed(cubo)
 
+  const BLACK = new THREE.Color( 'black' );
+
+  var newLight = new THREE.Color();
+  newLight = newLight.lerpColors(BLACK, ALIVE, structure.scene_brightness/255);
+  light.color.setHex(newLight.getHex());
 }
 
 let game = startScene(2);
-
-// let start = game.map((cell: any) => cell.alive);
-// console.log(start);
 
 const gameState = {
   clock: new THREE.Clock(),
