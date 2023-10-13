@@ -52,6 +52,7 @@ golRules.open()
 
 
 var structure = {
+  shells: 2, 
   spacing: 1.5,
   radius: 10,
   start_seed: 15,
@@ -98,31 +99,16 @@ function showNeighbors(cell: any, cubo: any[]): string {
 }
 
 // Choose random cells to start alive
-function setSeed(cubo: any[]): void {
+function setSeed(cubo: Cuboctahedron): void {
   for (let i = 0; i < structure.start_seed; i++) {
-    let index = Math.floor(Math.random() * cubo.length);
-    cubo[index].alive = true;
-    cubo[index].sphere.material.color.setHex(ALIVE);
+    let index = Math.floor(Math.random() * cubo.body.length);
+    cubo.body[index].alive = true;
+    cubo.body[index].sphere.material.color.setHex(ALIVE);
   }
 }
 
-function updateCubo(cubo: any[], newStatus: boolean[]): void {
-  for (let i = 0; i < cubo.length; i++) {
-    cubo[i].alive = newStatus[i];
-    if (cubo[i].alive) {
-      cubo[i].sphere.material.color.setHex(0xFFC0CB);
-    } else {
-      cubo[i].sphere.material.color.setHex(0xFF0000);
-    }
-  }
-}
-
-function setTime(currTime: number){
-  if (currTime > 0){
-    return currTime
-  }else{
-    return LIFETIME
-  }
+function setTime(currTime: number): number{
+  return currTime > 0 ? currTime : LIFETIME;
 }
 
 function playGame(cubo: any[]): void {
@@ -195,10 +181,9 @@ function statusReport(cubo: any[]): void {
 
 function startScene(shells: number = 2): any {
   console.log("STARTING...")
-  const start = cubo.generatePackedCuboctahedron(shells, structure.spacing);
-  var cellCubo = cubo.toCell(start);
-  setSeed(cellCubo);
-  return cellCubo;
+  let cubo  = new Cuboctahedron(shells, structure.spacing);
+  setSeed(cubo);
+  return cubo;
 }
 
 function restartScene(cubo: any, shells: number = 2): any{
@@ -256,8 +241,7 @@ const gameLoop = function () {
     playGame(game);
   }
   fade(game)
-  // console.log(time);
-
+  
   renderer.render(scene, camera);
 };
   

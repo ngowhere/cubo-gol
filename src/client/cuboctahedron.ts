@@ -1,10 +1,13 @@
 import {Cell} from './cell'
 
 export class Cuboctahedron{
+    shells: number;
     body: Cell[];
+
     constructor(shells: number = 2, spacing: number = 1.5){
-        const start = this.generateCoordinates(shells, spacing);
-        this.body = this.toCell(start);
+        const coords = this.generateCoordinates(shells, spacing);
+        this.body = this.toCell(coords);
+        this.shells = shells; 
     }
     
     generateCoordinates(n = 2, spacing = 2){
@@ -23,7 +26,7 @@ export class Cuboctahedron{
 
         return l
     }
-
+ 
     // Converts arr of positions into Cell objects and sets neighbors of each cell 
     toCell(cubo: any[]): Cell[] {
         const cells: Cell[] = cubo.map((pos: number[], index: number) => new Cell(index, pos));
