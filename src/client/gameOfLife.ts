@@ -102,9 +102,12 @@ export class gameOfLife{
         for (let i = 0; i < this.cubo.body.length; i++) {
           this.cubo.body[i].alive = newStatus[i];
           if (this.cubo.body[i].alive) {
-            this.cubo.body[i].sphere.material.color.setHex(this.ALIVE.getHex());
+            // this.cubo.body[i].sphere.material.color.setHex(this.ALIVE.getHex());
+            (this.cubo.body[i].sphere.material as THREE.MeshPhongMaterial).color.setHex(this.ALIVE.getHex());
+
           }else{
-            this.cubo.body[i].sphere.material.color.setHex(this.DEAD.getHex());
+            // this.cubo.body[i].sphere.material.color.setHex(this.DEAD.getHex());
+            (this.cubo.body[i].sphere.material as THREE.MeshPhongMaterial).color.setHex(this.DEAD.getHex());
           }
         }
     }
@@ -114,7 +117,9 @@ export class gameOfLife{
         for (let i = 0; i < this.structure.start_seed; i++) {
           let index = Math.floor(Math.random() * this.cubo.body.length);
           this.cubo.body[index].alive = true;
-          this.cubo.body[index].sphere.material.color.setHex(this.ALIVE);
+        //   this.cubo.body[index].sphere.material.color.setHex(this.ALIVE);
+          (this.cubo.body[index].sphere.material as THREE.MeshPhongMaterial).color.setHex(this.ALIVE.getHex());
+
         }
     }
 
@@ -132,8 +137,8 @@ export class gameOfLife{
     private fadeOut(cell : Cell): void{
         var deathColor = new THREE.Color();
         deathColor = deathColor.lerpColors(this.DEAD, this.ALIVE, cell.time/this.LIFETIME);
-        cell.sphere.material.color.setHex(deathColor.getHex())
-        // (cell.sphere.material as THREE.MeshPhongMaterial).color.setHex(deathColor.getHex());
+        // cell.sphere.material.color.setHex(deathColor.getHex())
+        (cell.sphere.material as THREE.MeshPhongMaterial).color.setHex(deathColor.getHex());
 
         cell.time -= this.rules.fade_out/1000;
     }
@@ -142,7 +147,9 @@ export class gameOfLife{
     private fadeIn(cell : Cell): void{
         var birthColor = new THREE.Color();
         birthColor = birthColor.lerpColors(this.ALIVE, this.DEAD, cell.time/this.LIFETIME);
-        cell.sphere.material.color.setHex(birthColor.getHex())
+        // cell.sphere.material.color.setHex(birthColor.getHex())
+        (cell.sphere.material as THREE.MeshPhongMaterial).color.setHex(birthColor.getHex());
+
         cell.time -= this.rules.fade_in/1000;
     }
 
