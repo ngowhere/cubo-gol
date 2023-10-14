@@ -379,7 +379,7 @@ function startScene(shells: number = 2): any {
 function restartScene(cubo: any): any{
   console.log("RESTARTING SCENE...")
   
-  const newCoords = generatePackedCuboctahedron(4, structure.spacing)
+  const newCoords = generatePackedCuboctahedron(2, structure.spacing)
   console.log(newCoords)
 
   cubo.forEach((cell: Cell, index: number) => {
@@ -398,7 +398,7 @@ function restartScene(cubo: any): any{
 
 }
 
-let game = startScene(4);
+let game = startScene(2);
 
 // let start = game.map((cell: any) => cell.alive);
 // console.log(start);
