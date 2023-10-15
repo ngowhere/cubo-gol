@@ -3,8 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import Stats from 'three/examples/jsm/libs/stats.module'
 import { GUI } from 'dat.gui'
 
-import {Cell} from './cell'
-import { Cuboctahedron } from './cuboctahedron'
+import {gameOfLife} from './gameOfLife'
 
 //================ Set Scene ================
 const scene = new THREE.Scene()
@@ -32,240 +31,68 @@ function onWindowResize() {
 const stats = new Stats()
 document.body.appendChild(stats.dom)
 
-const gui = new GUI()
-
-var rules = {
-	overpopulated: 3,
-	birth: 3,
-	underpopulated: 2,
-  fade_out: 50, 
-  fade_in: 50
-};
-
-const golRules = gui.addFolder("Game of Life Rules")
-golRules.add(rules, "overpopulated").min(0).max(55).step(1);
-golRules.add(rules, "underpopulated").min(0).max(55).step(1);
-golRules.add(rules, "birth").min(0).max(55).step(1);
-golRules.add(rules, "fade_out").min(0).max(1000).step(1)
-golRules.add(rules, "fade_in").min(0).max(1000).step(1)
-golRules.open()
-
-
-var structure = {
-  shells: 2, 
-  spacing: 1.5,
-  radius: 10,
-  start_seed: 15,
-  scene_brightness: 90,
-}
-
-const golStructure = gui.addFolder("Cuboctahedron Structure + Environment")
-golStructure.add(structure, "spacing").min(0).max(10).step(0.5)
-golStructure.add(structure, "radius").min(0).max(10)
-golStructure.add(structure, "start_seed").min(0).max(55).step(1)
-golStructure.add(structure, "scene_brightness").min(0).max(255).step(1)
-
-golStructure.open()
-
 
 // ========Game of Life========================================================
-const DEAD =  new THREE.Color( 0x454545 );
-const ALIVE = new THREE.Color( 0xffffff );
-const LIFETIME = 10;
+console.log("STARTING...")
+let game = new gameOfLife();
+game.cubo.body.forEach(cell => {scene.add(cell.sphere)})
 
-// Returns the number of alive neighbors a cell has
-function checkNeighbors(cell: any, cubo: any[]): number {
-  let neighbors = Array.from(cell.neighbors);
-  let result: number[] = [];
-  for (let i = 0; i < neighbors.length; i++) {
-    let testId = neighbors[i] as number;
-    if (cubo[testId].alive) {
-      result.push(neighbors[i] as number);
-    }
-  }
-  return result.length;
-}
-
-function showNeighbors(cell: any, cubo: any[]): string {
-  let neighbors = Array.from(cell.neighbors);
-  let result: number[] = [];
-  for (let i = 0; i < neighbors.length; i++) {
-    let testId = neighbors[i] as number;
-    if (cubo[testId].alive) {
-      result.push(neighbors[i] as number);
-    }
-  }
-  return result.toString();
-}
-
-// Choose random cells to start alive
-function setSeed(cubo: Cuboctahedron): void {
-  for (let i = 0; i < structure.start_seed; i++) {
-    let index = Math.floor(Math.random() * cubo.body.length);
-    cubo.body[index].alive = true;
-    cubo.body[index].sphere.material.color.setHex(ALIVE);
-  }
-}
-
-function setTime(currTime: number): number{
-  return currTime > 0 ? currTime : LIFETIME;
-}
-
-function playGame(cubo: any[]): void {
-  // Array of booleans
-  let newStatus = cubo.map((cell) => {
-    let count = checkNeighbors(cell, cubo);
-    if (cell.alive) {
-      if (count < rules.underpopulated || count > rules.overpopulated) {
-        cell.time = setTime(cell.time);
-        return false;
-      } else {
-        return true;
-      }
-    } else {
-      if (count == rules.birth){
-        cell.time = setTime(cell.time);
-        return true
-      }else{
-        return false
-      }
-    }
-  });
-
-  // Update new status + colors of cubo
-  for (let i = 0; i < cubo.length; i++) {
-    cubo[i].alive = newStatus[i];
-    if (cubo[i].alive) {
-      cubo[i].sphere.material.color.setHex(ALIVE.getHex());
-    }else{
-      cubo[i].sphere.material.color.setHex(DEAD.getHex());
-    }
-  }
-  // statusReport(cubo);
-}
-
-function fade(cubo: any[]): void {
-  for (let i = 0; i < cubo.length; i++) {
-    if (cubo[i].time > 0){
-      if (cubo[i].alive) {
-        fadeIn(cubo[i])
-      }else{
-        fadeOut(cubo[i])
-      }
-    }
-  }
-}
-
-function fadeOut(cell : any){
-  var deathColor = new THREE.Color();
-  deathColor = deathColor.lerpColors(DEAD, ALIVE, cell.time/LIFETIME);
-  cell.sphere.material.color.setHex(deathColor.getHex())
-  cell.time -= rules.fade_out/1000;
-}
-
-function fadeIn(cell : any){
-  var birthColor = new THREE.Color();
-  birthColor = birthColor.lerpColors(ALIVE, DEAD, cell.time/LIFETIME);
-  cell.sphere.material.color.setHex(birthColor.getHex())
-  cell.time -= rules.fade_in/1000;
-}
-
-function statusReport(cubo: any[]): void {
-  console.log("STATUS REPORT");
-  for (let i = 0; i < cubo.length; i++) {
-    if (cubo[i].alive) {
-      console.log(`Cell ${i} : ${showNeighbors(cubo[i], cubo)} :  ${Array.from(cubo[i].neighbors)}`);
-    }
-  }
-}
-
-function startScene(shells: number = 2): any {
-  console.log("STARTING...")
-  let cubo  = new Cuboctahedron(shells, structure.spacing);
-  setSeed(cubo);
-  return cubo;
-}
-
-function restartScene(cubo: any, shells: number = 2): any{
-  console.log("RESTARTING SCENE...")
-  
-  const newCoords = cubo.generatePackedCuboctahedron(shells, structure.spacing)
-  console.log(newCoords)
-
-  cubo.forEach((cell: Cell, index: number) => {
-    cell.alive = false;
-
-    console.log(cell.position)
-    cell.position = newCoords[index];
-    cell.time = 0;
-
-    const [x, y, z] = cell.position;
-    cell.sphere.position.set(x, y, z);
-  });
-
-  setSeed(cubo)
-
-  const BLACK = new THREE.Color( 'black' );
-
-  var newLight = new THREE.Color();
-  newLight = newLight.lerpColors(BLACK, ALIVE, structure.scene_brightness/255);
-  light.color.setHex(newLight.getHex());
-}
-
-let game = startScene(2);
-
-const gameState = {
-  clock: new THREE.Clock(),
-  frame: 0,
-  maxFrame: 90,
-  fps: 30,
-  per: 0
-};
-  
-gameState.clock.start();
-let lastUpdate = 0;
-const UPDATE_INTERVAL = 1;
-   
-const gameLoop = function () {
-  const seconds = gameState.clock.getDelta();
-  const totalSeconds = gameState.clock.getElapsedTime();
-  requestAnimationFrame(gameLoop);
-  gameState.per = gameState.frame / gameState.maxFrame;
-  gameState.frame += gameState.fps * seconds;
-  gameState.frame %= gameState.maxFrame;
-
-  const time = Math.round(totalSeconds);
-  
-  if (time - lastUpdate > UPDATE_INTERVAL){
-    lastUpdate = time;
-    playGame(game);
-  }
-  fade(game)
-  
-  renderer.render(scene, camera);
-};
-  
-gameLoop();
-
-// --- Restart Button -- 
+// --- Build out scene -- 
+console.log("Building scene...")
 const restartButton = document.getElementById('restartButton') as HTMLButtonElement | null;
-
 if (restartButton) {
     restartButton.addEventListener('click', () => {
-        restartScene(game);
+        game.restartScene();
     });
 } else {
     console.error('Button element not found');
 }
 
-// ====================================================
 
+const gui = new GUI()
+
+const golRules = gui.addFolder("Game of Life Rules")
+golRules.add(game.rules, "overpopulated").min(0).max(55).step(1);
+golRules.add(game.rules, "underpopulated").min(0).max(55).step(1);
+golRules.add(game.rules, "birth").min(0).max(55).step(1);
+golRules.add(game.rules, "fade_out").min(0).max(1000).step(1)
+golRules.add(game.rules, "fade_in").min(0).max(1000).step(1)
+golRules.open()
+
+const golStructure = gui.addFolder("Cuboctahedron Structure + Environment")
+// golStructure.add(game.structure, "shells").min(1).max(10).step(1)
+golStructure.add(game.structure, "spacing").min(0).max(10).step(0.5)
+// golStructure.add(game.structure, "radius").min(0).max(10)
+golStructure.add(game.structure, "start_seed").min(0).max(55).step(1)
+golStructure.add(game.structure, "scene_brightness").min(0).max(255).step(1)
+golStructure.open()
+
+
+//--Animation Frames--- 
+console.log("Playing game...")
+let gameLoop = function(){
+  const seconds = game.gameState.clock.getDelta();
+  const totalSeconds = game.gameState.clock.getElapsedTime();
+  requestAnimationFrame( gameLoop );
+
+  game.gameState.per = game.gameState.frame / game.gameState.maxFrame;
+  game.gameState.frame += game.gameState.fps * seconds;
+  game.gameState.frame %= game.gameState.maxFrame;
+
+  const time = Math.round(totalSeconds);
+  
+  if (time - game.lastUpdate > game.UPDATE_INTERVAL){
+    game.lastUpdate = time;
+    game.playGame();
+  }
+  game.fade()
+  renderer.render(scene, camera);
+}
+// Shows stats info
 function animate(): void {
     requestAnimationFrame(animate)
 
     stats.begin()
-    // cube.rotation.x += 0.01
-    // cube.rotation.y += 0.01
     stats.end()
 
     render()
@@ -277,5 +104,5 @@ function render() {
     renderer.render(scene, camera)
 }
 
+gameLoop();
 animate()
-//render()

@@ -3,16 +3,14 @@ import {Cell} from './cell'
 import { Cuboctahedron } from './cuboctahedron' 
 
 export class gameOfLife{
-    cubo: Cuboctahedron;
-    lifetime: number = 10;
-
     private DEAD =  new THREE.Color( 0x454545 );
     private ALIVE = new THREE.Color( 0xffffff );
-    private LIFETIME = 10;
+     LIFETIME = 10;
 
+     lastUpdate = 0;
+     UPDATE_INTERVAL = 1;
 
-    private lastUpdate = 0;
-    private UPDATE_INTERVAL = 1;
+    cubo: Cuboctahedron;
 
     structure = {
         shells: 2,
@@ -38,31 +36,34 @@ export class gameOfLife{
         fade_in: 50
     };
 
-    constructor(lifetime = 10){
+    constructor(){
         this.cubo  = new Cuboctahedron(this.structure.shells, this.structure.spacing);
-        this.lifetime = lifetime;
         this.gameState.clock.start();
         this.setSeed()
+        console.log("Creating game object...")
     }
 
-    gameLoop(){
-        const seconds = this.gameState.clock.getDelta();
-        const totalSeconds = this.gameState.clock.getElapsedTime();
-        requestAnimationFrame(this.gameLoop);
+    // gamingLoop(): void{
+    //     console.log("loop")
+    //     console.log(this.gameState)
+    //     console.log(this.gameState.clock);
+    //     const seconds = this.gameState.clock.getDelta();
+    //     const totalSeconds = this.gameState.clock.getElapsedTime();
+    //     // requestAnimationFrame( this.gameLoop );
 
-        this.gameState.per = this.gameState.frame / this.gameState.maxFrame;
-        this.gameState.frame += this.gameState.fps * seconds;
-        this.gameState.frame %= this.gameState.maxFrame;
+    //     this.gameState.per = this.gameState.frame / this.gameState.maxFrame;
+    //     this.gameState.frame += this.gameState.fps * seconds;
+    //     this.gameState.frame %= this.gameState.maxFrame;
       
-        const time = Math.round(totalSeconds);
+    //     const time = Math.round(totalSeconds);
         
-        if (time - this.lastUpdate > this.UPDATE_INTERVAL){
-          this.lastUpdate = time;
-          this.playGame();
-        }
-        this.fade()
-        // renderer.render(scene, camera);
-    }
+    //     if (time - this.lastUpdate > this.UPDATE_INTERVAL){
+    //       this.lastUpdate = time;
+    //       this.playGame();
+    //     }
+    //     this.fade()
+    //     // renderer.render(scene, camera);
+    // }
 
     // turns dims and brightens the lights of the cuboctahedron
     fade(): void {
@@ -119,8 +120,33 @@ export class gameOfLife{
           this.cubo.body[index].alive = true;
         //   this.cubo.body[index].sphere.material.color.setHex(this.ALIVE);
           (this.cubo.body[index].sphere.material as THREE.MeshPhongMaterial).color.setHex(this.ALIVE.getHex());
-
         }
+    }
+
+    restartScene(): any{
+        console.log("RESTARTING SCENE...")
+        
+        const newCoords = this.cubo.generateCoordinates(this.structure.shells, this.structure.spacing)
+        console.log(newCoords)
+      
+        this.cubo.body.forEach((cell: Cell, index: number) => {
+          cell.alive = false;
+      
+          console.log(cell.position)
+          cell.position = newCoords[index];
+          cell.time = 0;
+      
+          const [x, y, z] = cell.position;
+          cell.sphere.position.set(x, y, z);
+        });
+      
+        this.setSeed()
+      
+        const BLACK = new THREE.Color( 'black' );
+      
+        var newLight = new THREE.Color();
+        newLight = newLight.lerpColors(BLACK, this.ALIVE, this.structure.scene_brightness/255);
+        // light.color.setHex(newLight.getHex());
     }
 
     // Debugging function that displays the ids of all alive cells and their neighbors
@@ -153,7 +179,7 @@ export class gameOfLife{
         cell.time -= this.rules.fade_in/1000;
     }
 
-    // Returns the number of alive neighbors a cell has
+    // Helper: Returns the number of alive neighbors a cell has
     private checkNeighbors(cell: Cell): number {
         let neighbors = Array.from(cell.neighbors);
         let result: number[] = [];
@@ -166,7 +192,7 @@ export class gameOfLife{
         return result.length;
     }
 
-    // Returns stringified list of a cell's neighbors' ids
+    // Helper: Debugging helper that returns stringified list of a cell's neighbors' ids
     private showNeighbors(cell: Cell): string {
         const neighbors = Array.from(cell.neighbors);
         const result = neighbors
