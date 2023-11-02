@@ -1,3 +1,5 @@
+View the project here:[ https://cubo-gol-production.up.railway.app/]([url](https://cubo-gol-production.up.railway.app/))
+
 # Cuboctahedron Game of Life
 This is the cuboctahedron displaying Conway's game of life. This project uses the Three.js typescript [boilerplate made by Sean Bradley](https://github.com/Sean-Bradley/Three.js-TypeScript-Boilerplate.git). Visit the original boilerplate to learn more about this template. This project uses the **Dat.GUI* library to handle the slider controls. 
 
